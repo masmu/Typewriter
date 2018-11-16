@@ -3,6 +3,8 @@
 # + facelessuser
 # http://www.sublimetext.com/forum/viewtopic.php?f=6&t=4806
 
+import functools
+
 import sublime
 import sublime_plugin
 
@@ -75,6 +77,8 @@ def move_cursor_to_eof(view):
 
 class TypewriterMode(sublime_plugin.EventListener):
 
+    delay_count = 0
+
     def __init__(self):
         self.center_view_on_next_selection_modified = False
 
@@ -91,7 +95,13 @@ class TypewriterMode(sublime_plugin.EventListener):
         if not view.settings().get('typewriter_mode_scrolling'):
             return
         if command_name in plugin_settings.get('scrolling_mode_center_on_commands', []):
-            self.center_view(view)
+            delay = view.settings().get('typewriter_scrolling_delay', 0)
+            if delay > 0:
+                self.delay_count += 1
+                sublime.set_timeout(
+                    functools.partial(self.handle_delay_timeout, view), delay)
+            else:
+                self.center_view(view)
 
     def on_window_command(self, window, command_name, args):
         # This is to work around a bug in Sublime Text 3 wherein on_post_window_command
@@ -145,6 +155,12 @@ class TypewriterMode(sublime_plugin.EventListener):
         for i in blocked_cmds:
             if cmd == i:
                 return (True)
+
+    # Delay
+    def handle_delay_timeout(self, view):
+        self.delay_count -= 1
+        if self.delay_count == 0:
+            self.center_view(view)
 
 
 # Typing Mode Command
